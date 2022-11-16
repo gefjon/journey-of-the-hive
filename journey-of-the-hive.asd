@@ -1,14 +1,10 @@
-(asdf:defsystem #:journey-of-the-hive
-  :description "New CLOG System"
-  :author "some@one.com"
-  :license  "BSD"
-  :version "0.0.0"
-  :serial t
+(asdf:defsystem "journey-of-the-hive"
+  :description "A game for 4-ish players about democracy, cooperation, and space bugs."
+  :author "phoebe Goldman <phoebe@goldman-tribe.org>"
+  :license  "MIT"
+  :version "0.0.1"
+  :class :package-inferred-system
   :entry-point "journey-of-the-hive:start-app"  
-  :depends-on (#:clog) ; add clog plugins here as #:plugin for run time
-  :components ((:file "journey-of-the-hive")))
+  :depends-on ("journey-of-the-hive/main"))
 
-(asdf:defsystem #:journey-of-the-hive/tools
-  :defsystem-depends-on (:clog)
-  :depends-on (#:journey-of-the-hive #:clog/tools) ; add clog plugins here as #:plugin/tools for design time
-  :components ())
+(asdf:register-system-packages "clog" '(:clog-gui))
