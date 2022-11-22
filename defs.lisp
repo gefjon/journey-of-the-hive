@@ -19,9 +19,9 @@
    #:get-game-data
    #:init-game-data
    #:connection-starship-name
-   #:connection-fuel
-   #:connection-sustenance
-   #:connection-morale
+   #:connection-fuel #:fuel
+   #:connection-sustenance #:sustenance
+   #:connection-morale #:morale
    #:connection-current-scene
    #:connection-available-events
    #:pop-random-event

@@ -12,7 +12,7 @@
   (:display-scene
    (window)
    (with-clog-create (window-content window)
-       (div (:bind contents :hidden t)
+       (div (:bind contents :hidden t :style *style-event-window-contents-div*)
             (p (:content "My dear children,"))
             (p (:content "You are about to embark on a journey through deep space. It will be a journey of
                           exploration, of discovery, and, if all goes well, of creation. Your goal is to locate a
@@ -67,7 +67,7 @@
   (:display-scene
    (window)
    (with-clog-create (window-content window)
-       (div (:bind contents :hidden t)
+       (div (:bind contents :hidden t :style *style-event-window-contents-div*)
             (p (:content "Once everyone has bared their psyche, there's one more thing to do before you get
                          underway: you must name your starship. This will be your first decision as a group,
                          so take it seriously and start off on the right foot! During your naming process, and
@@ -107,7 +107,7 @@
   (:display-scene 
    (window)
    (with-clog-create (window-content window)
-       (panel (:bind contents :hidden t)
+       (panel (:bind contents :hidden t :style *style-event-window-contents-div*)
               (p (:content (format nil
                                    "Congratulations, crew of ~a! As you travel, check Status to keep track of
                                     your levels of fuel, sustenance and morale. Your journey will unfold as a
@@ -118,6 +118,5 @@
               (button (:bind continue-button :content "Embark!")))
      (make-event-rules event-rules)
      (set-on-click continue-button
-                   (thunk (advance-to-scene (pop-random-event window)
-                                            window)))
+                   (advance-to-random-event-function window))
      (setf (visiblep contents) t))))

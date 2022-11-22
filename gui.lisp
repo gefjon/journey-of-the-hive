@@ -4,20 +4,26 @@
   (:export
    #:advance-to-scene
    #:redisplay-current-scene
+   #:advance-to-random-event-function
 
    #:make-menu-bar #:find-menu-bar
+
+   #:add-to-inventory
 
    #:add-discussion-rules-button
    #:make-discussion-rules
 
    #:add-resources-to-menu-bar
    #:with-edit-resources
+   #:fuel #:sustenance #:morale
 
    #:add-event-rules-button
    #:make-event-rules
 
    #:*style-text-align-center*
-   #:*style-event-option*))
+   #:*style-event-option*
+   #:*style-img-dynamic-size-black-border*
+   #:*style-event-window-contents-div*))
 (in-package :journey-of-the-hive/gui)
 
 ;;;; macro definitions
@@ -33,7 +39,12 @@
 ;;;; style defs
 
 (defparameter *style-text-align-center* "text-align:center;")
-(defparameter *style-event-option* "margin:10px;padding:10px;border-style:solid;border-color:black;")
+(defparameter *style-event-option*
+  "margin:10px;padding:10px;border-style:solid;border-color:black;")
+(defparameter *style-img-dynamic-size-black-border*
+  "max-width:100%;max-height:100%;border-style:solid;border-color:black;")
+(defparameter *style-event-window-contents-div*
+  "margin:10px;")
 
 ;;;; the menu bar
 
@@ -73,9 +84,28 @@
   (or (connection-data-item connection "rules-dropdown")
       (make-rules-dropdown connection)))
 
+;;; the inventory, which is added dynamically and offers popups to review images and stuff
+
+(defun make-inventory-dropdown (connection)
+  (let* ((menu-bar (find-menu-bar connection))
+         (dropdown (create-gui-menu-drop-down menu-bar :content "Memories")))
+    (setf (connection-data-item connection "inventory-dropdown") dropdown)
+    dropdown))
+
+(defun find-inventory-dropdown (connection)
+  (or (connection-data-item connection "inventory-dropdown")
+      (make-inventory-dropdown connection)))
+
+(defun add-to-inventory (connection title display-function &rest kwargs &key (width 400) (height 400) background-color)
+  (declare (ignore width height background-color))
+  (flet ((show-inventory-item-in-popup (connection)
+           (apply #'show-in-popup connection title display-function kwargs)))
+    (let* ((dropdown (find-inventory-dropdown connection)))
+      (create-gui-menu-item dropdown :on-click #'show-inventory-item-in-popup :content title))))
+
 ;;;; popup windows
 
-(defun show-in-popup (clog-obj title make-contents &key (width 400) (height 200))
+(defun show-in-popup (clog-obj title make-contents &key (width 400) (height 200) (background-color nil background-color-p))
   (let* ((body (connection-body clog-obj))
          (popup (create-gui-window body
                                    :title title
@@ -84,6 +114,8 @@
                                    :width width
                                    :height height))
          (popup-contents (window-content popup)))
+    (when (and background-color-p background-color)
+      (setf (background-color popup-contents) background-color))
     (window-center popup)
     (funcall make-contents popup-contents)
     (set-on-window-can-size popup (constantly nil))
@@ -144,10 +176,13 @@
                                      (p ()
                                         (span (:content "Journey of the Hive"))
                                         (br ())
-                                        (span (:content "(c) 2022 - Phoebe Goldman"))))
+                                        (span (:content "(c) 2022 - Phoebe Goldman"))
+                                        (br ())
+                                        (span (:content "Space images courtesy of and (c) NASA"))))
                                 (p (:style "text-align:center;"
                                     :content "Journey of the Hive is a game for 4-ish players about democracy,
-                                          cooperation, and space bugs."))))))))
+                                          cooperation, and space bugs.")))))
+                     :height 220)))
 
 ;;; the discussion rules window, for guidance on how to collaboratively make decisions
 
@@ -246,3 +281,7 @@
              (window-collection connection))
     (or (window-to-top-by-title connection (scene-title current-scene))
         (display-scene-in-new-window current-scene connection))))
+
+(defun advance-to-random-event-function (existing-window)
+  (thunk (advance-to-scene (pop-random-event existing-window)
+                           existing-window)))
