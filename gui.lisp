@@ -15,6 +15,7 @@
 
    #:add-resources-to-menu-bar
    #:with-edit-resources
+   #:apply-effects
    #:fuel #:sustenance #:morale
 
    #:add-event-rules-button
@@ -23,7 +24,12 @@
    #:*style-text-align-center*
    #:*style-event-option*
    #:*style-img-dynamic-size-black-border*
-   #:*style-event-window-contents-div*))
+   #:*style-event-window-contents-div*
+
+   #:create-advance-button
+   #:create-event-contents
+   #:create-effects-list
+   #:create-event-option))
 (in-package :journey-of-the-hive/gui)
 
 ;;;; macro definitions
@@ -44,13 +50,24 @@
 (defparameter *style-img-dynamic-size-black-border*
   "max-width:100%;max-height:100%;border-style:solid;border-color:black;")
 (defparameter *style-event-window-contents-div*
-  "margin:10px;")
+  "margin:10px;padding:10px;")
 
 ;;;; the menu bar
 
 (defun find-menu-bar (connection)
   (or (connection-data-item connection "menu-bar")
       (make-menu-bar connection)))
+
+(defun create-debug-menu (menu-bar)
+  (let* ((drop-down (create-gui-menu-drop-down menu-bar
+                                               :content "Debug")))
+    (create-gui-menu-item drop-down
+                          :content "Edit resources"
+                          :on-click 'show-debug-edit-resources-in-popup)
+    (create-gui-menu-item drop-down
+                          :content "Jump to scenes"
+                          :on-click 'show-debug-jump-to-scene-in-popup)
+    drop-down))
 
 (defun make-menu-bar (connection)
   (with-clog-create (connection-body connection)
@@ -60,15 +77,7 @@
                                     :on-click 'on-about))
                     (gui-menu-item (:content "Resume"
                                     :on-click 'redisplay-current-scene))
-                    (gui-menu-drop-down (:content "Debug")
-                                        (gui-menu-item (:content "+1 fuel"
-                                                        :on-click (thunk (with-edit-resources connection
-                                                                             (fuel)
-                                                                           (incf fuel)))))
-                                        (gui-menu-item (:content "-1 fuel"
-                                                        :on-click (thunk (with-edit-resources connection
-                                                                             (fuel)
-                                                                           (decf fuel)))))))
+                    (debug-menu ()))
     (setf (connection-data-item connection "menu-bar") menu-bar)
     menu-bar))
 
@@ -122,27 +131,73 @@
     (setf (visiblep popup) t)
     popup))
 
+;;; debug popups
+
+(defun create-edit-resource-list-item (ul keyword)
+  (flet ((add-one (connection)
+           (apply-effects connection keyword 1))
+         (sub-one (connection)
+           (apply-effects connection keyword -1)))
+    (with-clog-create ul
+        (list-item ()
+                   (span (:content (string-capitalize keyword)))
+                   (button (:bind +1-button
+                             :content "+1"))
+                   (button (:bind -1-button
+                             :content "-1")))
+      (set-on-click +1-button #'add-one)
+      (set-on-click -1-button #'sub-one))))
+
+(defun create-debug-edit-resources (parent)
+  (let* ((ul (create-unordered-list parent)))
+    (loop :for keyword :in '(:fuel :sustenance :morale :fuel-capacity :sustenance-capacity)
+          :do (create-edit-resource-list-item ul keyword))))
+
+(defun show-debug-edit-resources-in-popup (connection)
+  (show-in-popup connection
+                 "Debug - Edit Resources"
+                 'create-debug-edit-resources))
+
+(defun create-jump-to-scene-button (parent scene-name &aux (scene (symbol-value scene-name)))
+  (flet ((go-to-scene (connection)
+           (run-scene scene connection)))
+    (with-clog-create parent
+        (button (:bind go-button
+                  :content (scene-name scene)))
+      (set-on-click go-button #'go-to-scene))))
+
+(defun create-debug-jump-to-scene (parent)
+  (loop :for scene-name :in *all-scenes*
+        :do (create-jump-to-scene-button parent scene-name)))
+
+(defun show-debug-jump-to-scene-in-popup (connection)
+  (show-in-popup connection
+                 "Debug - Jump to Scene"
+                 'create-debug-jump-to-scene))
+
 ;;; the status window, for displaying resources
 
 (defun show-resources (container)
   (with-clog-create container
       (panel (:style "margin-left:10px;")
-           (p ()
-              (span (:content (connection-fuel container)))
-              (span (:content " fuel")))
-           (p ()
-              (span (:content (connection-sustenance container)))
-              (span (:content " sustenance")))
-           (p ()
-              (span (:content (connection-morale container)))
-              (span (:content " morale"))))))
+           (p (:content (format nil
+                                "~d / ~d fuel"
+                                (connection-fuel container)
+                                (connection-fuel-capacity container))))
+           (p (:content (format nil
+                                "~d / ~d sustenance"
+                                (connection-sustenance container)
+                                (connection-sustenance-capacity container))))
+           (p (:content (format nil
+                                "~d morale"
+                                (connection-morale container)))))))
 
 (defun show-resources-in-popup (connection)
   (or (window-to-top-by-title connection "Status")
       (let* ((popup (show-in-popup connection
                                    "Status"
                                    (constantly nil)
-                                   :width 140
+                                   :width 180
                                    :height 160)))
         (update-resource-displays connection popup))))
 
@@ -233,6 +288,7 @@
 ;;;; displaying main scenes
 
 (defparameter *main-window-outer-margin* 20)
+(defparameter *main-window-width* 0.6)
 
 (defun make-scene-window (body title)
   (let* ((menu-bar (find-menu-bar body))
@@ -240,7 +296,8 @@
          (container (window body))
          (container-width (inner-width container))
          (container-height (inner-height container))
-         (my-width (- container-width (* *main-window-outer-margin* 2)))
+         (my-width (- (* container-width *main-window-width*)
+                      (* *main-window-outer-margin* 2)))
          (my-height (- container-height (+ menu-bar-height (* *main-window-outer-margin* 2))))
          (main-window (create-gui-window body
                                          :hidden nil
@@ -285,3 +342,82 @@
 (defun advance-to-random-event-function (existing-window)
   (thunk (advance-to-scene (pop-random-event existing-window)
                            existing-window)))
+
+;;; element builders
+
+(defun apply-one-effect-without-updating-gui (connection delta resource-name &optional capacity-name)
+  (let* ((old-value (game-data-slot-value connection resource-name))
+         (new-value (+ old-value delta)))
+    (if (<= new-value 0)
+        (error 'out-of-resource :resource-name resource-name)
+        (setf (game-data-slot-value connection resource-name)
+              (if capacity-name
+                  (let* ((capacity (game-data-slot-value connection capacity-name)))
+                    (min new-value capacity))
+                  new-value)))))
+
+(defun apply-effects (connection &key (fuel 0) (sustenance 0) (morale 0) (fuel-capacity 0) (sustenance-capacity 0))
+  (with-edit-resources connection ()
+    (apply-one-effect-without-updating-gui connection fuel-capacity 'fuel-capacity)
+    (apply-one-effect-without-updating-gui connection fuel 'fuel 'fuel-capacity)
+    (apply-one-effect-without-updating-gui connection sustenance-capacity 'sustenance-capacity)
+    (apply-one-effect-without-updating-gui connection sustenance 'sustenance 'sustenance-capacity)
+    (apply-one-effect-without-updating-gui connection morale 'morale)))
+
+(defun create-advance-button (parent window
+                              &key (content "Continue.")
+                                (target-scene :random)
+                                effects
+                                before-continuing)
+  (let* ((button (create-button parent :content content)))
+    (flet ((advance-button-callback (button)
+             (apply 'apply-effects button effects)
+             (when before-continuing
+               (funcall before-continuing button))
+             (if (eq target-scene :random)
+                 (advance-to-scene (pop-random-event window)
+                                   window)
+                 (advance-to-scene target-scene window))))
+      (set-on-click button
+                    #'advance-button-callback
+                    :one-time t))))
+
+(defun create-event-contents (parent &key hidden)
+  (create-div parent :hidden hidden :style *style-event-window-contents-div*))
+
+(defun create-effects-list (parent
+                            &key fuel sustenance morale
+                              fuel-capacity sustenance-capacity)
+  (when (or fuel sustenance morale fuel-capacity sustenance-capacity)
+    (let* ((ul (create-unordered-list parent)))
+      (when fuel
+        (create-list-item ul :content (format nil "~@d fuel" fuel)))
+      (when fuel-capacity
+        (create-list-item ul :content (format nil "~@d fuel capacity" fuel-capacity)))
+      (when sustenance
+        (create-list-item ul :content (format nil "~@d sustenance" sustenance)))
+      (when sustenance-capacity
+        (create-list-item ul :content (format nil "~@d sustenance capacity" sustenance-capacity)))
+      (when morale
+        (create-list-item ul :content (format nil "~@d morale" morale))))))
+
+(defun create-event-option (parent window
+                            &key proposal
+                              concern
+                              effects
+                              button-content
+                              (target-scene :random)
+                              before-continuing)
+  (let* ((div (create-div parent :style *style-event-option*)))
+    (when proposal
+      (create-p div :content (concatenate 'string "Proposal: " proposal)))
+    (when concern
+      (create-p div :content (concatenate 'string "Concern: " concern)))
+    (when effects
+      (apply #'create-effects-list div effects))
+    (create-advance-button div window
+                           :content button-content
+                           :target-scene target-scene
+                           :before-continuing before-continuing
+                           :effects effects)
+    div))

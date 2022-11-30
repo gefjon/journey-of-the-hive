@@ -48,8 +48,9 @@ Each of the CLAUSES should take one of the forms:
   
   (multiple-value-bind (title on-enter display-scene)
       (parse-scene-clauses special-var-name clauses)
-    `(defparameter ,special-var-name
-       ,(make-scene-form special-var-name title on-enter display-scene))))
+    `(progn (defparameter ,special-var-name
+              ,(make-scene-form special-var-name title on-enter display-scene))
+            (pushnew ',special-var-name *all-scenes*))))
 
 (defmacro define-event (scene-name &body clauses)
   "Define a `scene' object and add its name to `*events*'"
