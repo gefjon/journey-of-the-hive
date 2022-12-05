@@ -13,7 +13,9 @@
                   :initarg :capacity-loss)
    (success-modifier :type single-float
                      :accessor micrometeor-impact-success-modifier
-                     :initarg :success-modifier))
+                     :initarg :success-modifier)
+   (success-p :type boolean
+              :accessor micrometeor-impact-success-p))
   (:default-initargs :success-modifier 1f0))
 
 (defun connection-scene-data (connection)
@@ -44,18 +46,19 @@
   (setf (micrometeor-impact-success-modifier (connection-scene-data connection))
         new-modifier))
 
+(defun connection-success-p (connection)
+  (micrometeor-impact-success-p (connection-scene-data connection)))
+
+(defun (setf connection-success-p) (new-value connection)
+  (setf (micrometeor-impact-success-p (connection-scene-data connection)) new-value))
+
 (define-event *micrometeor-impact*
   (:title "Micrometeor Impact")
   (:on-enter
    (connection)
    (let* ((sustenance (connection-sustenance connection))
-          (sustenance-capacity (connection-sustenance-capacity connection))
           (loss (floor sustenance 3))
-          ;; don't lose any capacity if you didn't lose any sustenance, because
-          ;; `display-micrometeor-impact-empty-tank' just repairs the breach immediately
-          (capacity-loss (if (zerop loss)
-                             0
-                             (floor sustenance-capacity 4)))
+          (capacity-loss loss)
           (scene-data (make-instance 'micrometeor-impact-scene-data
                                      :sustenance-loss loss
                                      :capacity-loss capacity-loss)))
@@ -140,28 +143,112 @@
                                                                   (setf (connection-success-modifier connection)
                                                                         (* 0.8 (connection-success-modifier connection)))))))))))
 
+(predeclare-scene *micrometeor-impact-vent-tank*)
+(predeclare-scene *micrometeor-impact-install-patch*)
+
 (define-scene *micrometeor-impact-begin-repairs*
   (:title "Micrometeor Impact - Begin Repairs")
   (:display-scene
    (window)
-   (with-clog-create (window-content window)
-       (event-contents ()
-                       (p (:content "Selected repair facets don space suits. Exit airlock. Traverse
+   (let* ((current-loss (connection-sustenance-loss window))
+          (original-sustenance (+ (connection-sustenance window)
+                                  current-loss))
+          (total-loss-after-venting (floor original-sustenance 2))
+          (vent-sustenance-delta (- total-loss-after-venting current-loss)))
+     (with-clog-create (window-content window)
+         (event-contents ()
+                         (p (:content "Selected repair facets don space suits. Exit airlock. Traverse
                                      hull. Locate breach. Visual of light refracted by trail of ejected fluid,
                                      captured from two distinct viewpoints. Haunting and poetic. Inspection
                                      suggests force of venting fluid beyond tolerance of standard patch kit."))
-                       (panel (:bind choices :display :flex)
-                              )
-                       ;; TODO options:
-                       ;; - if sustenance below some threshold, redistribute to auxiliary tank. if sustenance
-                       ;;   above threshold, tank capacity is insufficient.
-                       ;; - vent fluid before installing patch. loses significant fluid volume. offer
-                       ;;   possibility of using miners to recover fluid.
-                       ;; - install patch under suboptimal conditions. reduces success rate.
-                       ))))
+                         (panel (:display :flex)
+                                (event-option (window
+                                               :proposal "vent fluid before installing patch. Controlled vent
+                                                        will create coherent cloud, allow reclaiming nutrient
+                                                        fluid after applying patch."
+                                               :concern "efficiency of reclaiming vented fluid surely below
+                                                       100%; will require fuel."
+                                               :effects `(:sustenance ,(- vent-sustenance-delta))
+                                               :button-content "Vent tank."
+                                               :target-scene *micrometeor-impact-vent-tank*))
+                                (event-option (window
+                                               :proposal "install panel without emptying tank."
+                                               :concern "patch may not hold."
+                                               :button-content "Install patch."
+                                               :before-continuing (lambda (connection)
+                                                                    (setf (connection-success-modifier connection)
+                                                                          (* 0.8 (connection-success-modifier connection))))
+                                               :target-scene *micrometeor-impact-install-patch*))))))))
 
-;; TODO: scene to install patch. random chance of success altered by modifier. if successful, continue. if
-;; failed, lose additional sustenance and morale.
+(define-scene *micrometeor-impact-vent-tank*
+  (:title "Micrometeor Impact - Vent Tank")
+  (:display-scene
+   (window)
+   (with-clog-create (window-content window)
+       (event-contents ()
+                       (p (:content "Extra-vehicular facets re-enter airlock. No need to remove suits. Strap
+                                     into acceleration dampers. Open vent. Compromised tank exposed to
+                                     vacuum. Resulting lurch, though expected, is jarring."))
+                       (p (:content "Extract hull-repair facets from acceleration dampers. Exit
+                                     airlock. Traverse hull. Return to breach location. Undesired nutrient
+                                     fluid ejection no longer present."))
+                       (advance-button (window
+                                        :content "Install patch."
+                                        :target-scene *micrometeor-impact-install-patch*))))))
 
-;; TODO: scene to recover vented fluid. only available if patch is successful. trade fixed fuel cost to
-;; recover some fraction of sustenance lost throughout experience.
+(define-scene *micrometeor-impact-install-patch*
+  (:title "Micrometeor Impact - Install Patch")
+  (:on-enter
+   (connection)
+   (let* ((success-chance (connection-success-modifier connection))
+          (random (random 1f0))
+          (success-p (< random success-chance)))
+     (setf (connection-success-p connection) success-p)
+     (when success-p
+       (apply-effects connection :sustenance-capacity (connection-capacity-loss connection)))))
+  (:display-scene
+   (window)
+   (if (connection-success-p window)
+       (display-micrometeor-impact-install-tank-success window)
+       (display-micrometeor-impact-install-tank-failure window))))
+
+(defun display-micrometeor-impact-install-tank-success (window)
+  (let* ((overall-loss (connection-sustenance-loss window))
+         (capacity-regained (connection-capacity-loss window)))
+    (with-clog-create (window-content window)
+        (event-contents ()
+                        (p (:content (format nil "+~d sustenance capacity" capacity-regained)))
+                        (p (:content "Apply patch kit per specifications. Test pressurization. Patch
+                                      holds. Repair facets return to airlock, remove space suits, re-enter
+                                      recuperation cycle."))
+                        (p (:content (format nil "Sustenance capacity returned to pre-incident
+                                                  levels. Sustenance storage depleted by ~d; current storage
+                                                  ~d."
+                                             overall-loss
+                                             (connection-sustenance window))))
+                        (panel (:display :flex)
+                               (event-option (window
+                                              :proposal "attempt to reclaim some of lost nutrient fluid by
+                                                         maneuvering through vapor trail."
+                                              :concern "fuel expenditure."
+                                              :effects `(:fuel -2 :sustenance ,(ceiling overall-loss 2))
+                                              :button-content "Route through vapor trail, then continue."))
+                               (event-option (window
+                                              :proposal "fuel waste currently of greater concern than
+                                                         reclaiming nutrient fluid."
+                                              :button-content "Abandon lost nutrients; continue.")))))))
+
+(defun display-micrometeor-impact-install-tank-failure (window)
+  (with-clog-create (window-content window)
+      (event-contents ()
+                      (p (:content "Apply patch kit per specifications despite suboptimal conditions. Repair
+                                    facets express concern, uncertainty. Fit appears incorrect. Retreat repair
+                                    facets around hull for patch test. Attempt to repressurize tank. Ship
+                                    lurches violently. Extra-vehicular facets experience sudden, jarring
+                                    acceleration. Lucky they were correctly clipped to hull. No, not luck;
+                                    discipline. Return repair facets for inspection. Disturbing tear in
+                                    hull. Chunks of patch kit, hull drifting away from ship. Damage level
+                                    prohibits repair using shipboard resources. Would-be repair facets return
+                                    to airlock, remove space suits."))
+                      (advance-button (window
+                                       :content "Limp onward.")))))

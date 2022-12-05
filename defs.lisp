@@ -34,7 +34,8 @@
    #:out-of-resource #:out-of-resource-name
    
    ;; predeclared; defined later
-   #:*intro-scene*))
+   #:*intro-scene*
+   #:*victory*))
 (in-package :journey-of-the-hive/defs)
 
 (defmacro thunk (&body body)
@@ -87,6 +88,7 @@ Symbols are added to this list by the `define-scene' macro defined in defscene.l
                 ,docstring)))
 
 (predeclare-scene *intro-scene*)
+(predeclare-scene *victory*)
 
 (defparameter *starting-fuel* 8)
 (defparameter *starting-sustenance* 8)
@@ -206,7 +208,7 @@ Symbols are added to this list by the `define-scene' macro defined in defscene.l
 
 (defun pop-random-event (connection)
   (or (pop (connection-available-events connection))
-      (error "still to write: final scene")))
+      *victory*))
 
 (define-condition out-of-resource (error)
   ((resource-name :type (member 'fuel 'sustenance 'morale)

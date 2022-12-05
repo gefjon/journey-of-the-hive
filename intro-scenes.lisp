@@ -12,7 +12,7 @@
   (:display-scene
    (window)
    (with-clog-create (window-content window)
-       (event-contents (:bind contents)
+       (event-contents ()
                        (p (:content "My dear children,"))
                        (p (:content "You are about to embark on a journey through deep space. It will be a
                                      journey of exploration, of discovery, and, if all goes well, of

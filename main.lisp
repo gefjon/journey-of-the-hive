@@ -7,6 +7,7 @@
    :journey-of-the-hive/defs
    :journey-of-the-hive/gui
    :journey-of-the-hive/intro-scenes
+   :journey-of-the-hive/ending-scenes
    :journey-of-the-hive/events)
   (:local-nicknames (#:alex :alexandria))
   (:export #:start-app))

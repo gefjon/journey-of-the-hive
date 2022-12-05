@@ -50,37 +50,28 @@
      (center-children choices :horizontal t :vertical nil)
      (setf (visiblep contents) t))))
 
-(defparameter *nebula-image*
-  "/img/nasa_archives_helix.jpg"
-  "Copyright NASA, 2020. From https://www.nasa.gov/mission_pages/chandra/images/helix-nebula.html")
-
-(defun display-helix-nebula (container)
-  (with-clog-create container
-      (img (:url-src *nebula-image*
-            :alt-text "Helix Nebula. (c) NASA, 2020. Retrieved from https://www.nasa.gov/mission_pages/chandra/images/helix-nebula.html"
-            :style *style-img-dynamic-size-black-border*))
-    (center-children container)))
+(define-image *nebula-image*
+  :create-function create-helix-nebula
+  :file-name "nasa_archives_helix"
+  :nasa-title "Helix Nebula"
+  :year 2020
+  :source-url "https://www.nasa.gov/mission_pages/chandra/images/helix-nebula.html")
 
 (define-scene *glittering-nebula-low-thrusters*
   (:title "Glittering Nebula - Thrusters Low")
   (:on-enter
    (connection)
-   (add-to-inventory connection "Helix Nebula" 'display-helix-nebula :height 302 :background-color "black"))
+   (add-to-inventory connection "Helix Nebula" 'create-helix-nebula :height 302 :background-color "black"))
   (:display-scene
    (window)
    (with-clog-create (window-content window)
-       (event-contents (:bind contents :hidden t)
+       (event-contents ()
                        (p (:content "-1 sustenance / +1 morale."))
                        (p (:content "Humming appreciation. Stardust swirls in distance. Eye shape with blue
                                      outline, yellow sclera, deep blue iris and bright violet pupil."))
-                       (div (:bind image-container
-                              :style *style-text-align-center*))
+                       (helix-nebula (:height (* 0.3 (parse-float:parse-float (inner-height window)))))
                        (advance-button (window
-                                        :content "Bask, and continue.")))
-     (setf (height image-container)
-           (* 0.3 (parse-float:parse-float (inner-height window))))
-     (display-helix-nebula image-container)
-     (setf (visiblep contents) t))))
+                                        :content "Bask, and continue."))))))
 
 (predeclare-scene *glittering-nebula-launch-shuttle*)
 (predeclare-scene *glittering-nebula-abandon-facet*)
@@ -90,8 +81,7 @@
   (:on-enter
    (connection)
    ;; counteract the morale benefit, because this doesn't go as planned
-   (apply-effects connection :morale -2)
-   )
+   (apply-effects connection :morale -2))
   (:display-scene
    (window)
    (with-clog-create (window-content window)
@@ -113,7 +103,8 @@
                                      beauty. Stardust swirls in distance. Eye shape with blue outline, yellow
                                      sclera, deep blue iris and bright violet pupil."))
                        (div (:bind image-container
-                              :style *style-text-align-center*))
+                             :style *style-text-align-center*)
+                            (helix-nebula ()))
                        (p (:content "Watcher facets exit airlock, spread along hull. Distracted; swept up in
                                      nebula-viewing. Bright-eyed facet walks to stern. Gazes outward,
                                      entranced. Stumbles. Boot magnets do not engage. Drifts. Bright-eyed
@@ -137,8 +128,7 @@
                                              :button-content "With regret, abandon."
                                              :target-scene *glittering-nebula-abandon-facet*))))
      (setf (height image-container)
-           (* 0.3 (parse-float:parse-float (inner-height window))))
-     (display-helix-nebula image-container))))
+           (* 0.3 (parse-float:parse-float (inner-height window)))))))
 
 (define-scene *glittering-nebula-launch-shuttle*
   (:title "Glittering Nebula - Launch Shuttle")

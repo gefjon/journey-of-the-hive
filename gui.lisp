@@ -8,6 +8,8 @@
 
    #:make-menu-bar #:find-menu-bar
 
+   #:define-image
+
    #:add-to-inventory
 
    #:add-discussion-rules-button
@@ -29,7 +31,8 @@
    #:create-advance-button
    #:create-event-contents
    #:create-effects-list
-   #:create-event-option))
+   #:create-event-option
+   #:create-image))
 (in-package :journey-of-the-hive/gui)
 
 ;;;; macro definitions
@@ -41,6 +44,19 @@
                                (lambda (,game-data)
                                  (with-slots ,game-data-slots ,game-data
                                    ,@body)))))
+
+(defmacro define-image (variable-name &key create-function file-name (extension "jpg") year nasa-title nasa-id source-url)
+  `(progn
+     (defvar ,variable-name
+       ,(format nil "/img/~a.~a" file-name extension)
+       ,(format nil "~@[\"~a\"~%~]Copyright NASA~@[, ~d~].~@[ ID ~a.~]~@[ From ~a~]"
+                nasa-title year nasa-id source-url))
+     ,@(when create-function
+         `((defun ,create-function (parent &key height)
+             (create-image parent
+                           ,variable-name 
+                           (documentation ',variable-name 'variable)
+                           :height height))))))
 
 ;;;; style defs
 
@@ -227,7 +243,6 @@
                            (div ()
                                 (div (:class "w3-black"
                                       :style *style-text-align-center*)
-                                     (img (:url-src "/img/clogwicon.png"))
                                      (p ()
                                         (span (:content "Journey of the Hive"))
                                         (br ())
@@ -237,7 +252,7 @@
                                 (p (:style "text-align:center;"
                                     :content "Journey of the Hive is a game for 4-ish players about democracy,
                                           cooperation, and space bugs.")))))
-                     :height 220)))
+                     :height 200)))
 
 ;;; the discussion rules window, for guidance on how to collaboratively make decisions
 
@@ -420,4 +435,14 @@
                            :target-scene target-scene
                            :before-continuing before-continuing
                            :effects effects)
+    div))
+
+(defun create-image (parent path alt-text &key height)
+  (let* ((div (create-div parent :style *style-text-align-center*)))
+    (when height
+      (setf (height div) height))
+    (create-img div
+                :url-src path
+                :alt-text alt-text
+                :style *style-img-dynamic-size-black-border*)
     div))
