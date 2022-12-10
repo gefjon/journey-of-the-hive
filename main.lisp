@@ -22,8 +22,8 @@
   (make-menu-bar connection)
   (redisplay-current-scene connection))
 
-(defun start-app ()
+(defun start-app (&key (port 8080))
   (initialize 'on-new-window
    :static-root (merge-pathnames "./www/"
-                  (asdf:system-source-directory :journey-of-the-hive)))
-  (open-browser))
+                  (asdf:system-source-directory :journey-of-the-hive))
+   :port port))
