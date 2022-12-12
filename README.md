@@ -1,8 +1,9 @@
-# New CLOG-GUI project
-### _Your Name <your.name@example.com>_
+# Journey of the Hive
+### _by Phoebe Goldman <phoebe@goldman-tribe.org>_
 
-This is a project to do ... something.
+*Journey of the Hive* is a narrative-driven role-playing game for four-ish people about
+democracy, cooperation and space bugs. Play at [http://journey.goldman-tribe.org]
 
 ## License
 
-Specify license here
+(c) Phoebe Goldman, 2022. All rights reserved.
